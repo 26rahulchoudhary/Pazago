@@ -1,10 +1,60 @@
+import "dotenv/config";
 import { Agent } from "@mastra/core/agent";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
+import { PgVector, PostgresStore } from "@mastra/pg";
+import { Memory } from "@mastra/memory";
 import * as mathjs from "mathjs";
 
+// Schema for calculator tool
 const inputSchema = z.object({ expression: z.string() });
 
+// Environment variables
+const {
+  POSTGRES_CONNECTION_STRING,
+  PG_HOST = "localhost",
+  PG_PORT = "5432",
+  PG_USER = "postgres",
+  PG_PASSWORD = "password",
+  PG_DATABASE = "postgres",
+} = process.env;
+
+const connectionString = POSTGRES_CONNECTION_STRING ||
+  `postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${PG_DATABASE}`;
+
+// Vector store and memory
+const vectorStore = new PgVector({ connectionString });
+const memory = new Memory({
+  storage: new PostgresStore({ connectionString }),
+  vector: vectorStore,
+  embedder: openai.embedding("text-embedding-3-small"),
+  options: { 
+    lastMessages: 10,
+    threads: {
+      generateTitle: {
+        model: openai.chat("gpt-3.5-turbo"),
+        instructions: "Generate a concise Q&A style title based on the user's first question. Limit to 30 characters.",
+      },
+    },
+    workingMemory: {
+      enabled: true,
+      template: `
+# User Financial Profile
+
+- Monthly Budget: 
+- Savings Goals: 
+- Last Plan Discussed: 
+- Preferences: 
+      `,
+    },
+    semanticRecall: {
+      topK: 3,
+      messageRange: { before: 2, after: 1 },
+    },
+  },
+});
+
+// Agent definition
 export const berkshireAgent = new Agent({
   name: "BerkshireBuffettAgent",
   instructions: `
@@ -30,4 +80,6 @@ export const berkshireAgent = new Agent({
       execute: async ({ expression }) => mathjs.evaluate(expression),
     },
   },
+  memory,
+  vectorStore,
 });

@@ -27,9 +27,11 @@
     "@mastra/pg": "^0.12.5",
     "@mastra/rag": "^1.0.4",
     "ai": "^4.3.19",
+    "dotenv": "^17.2.1",
     "json-schema": "^0.4.0",
     "mathjs": "^14.6.0",
     "pdf-parse": "^1.1.1",
+    "ts-node": "^10.9.2",
     "zod": "^3.25.76"
   },
   "devDependencies": {
